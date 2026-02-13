@@ -517,3 +517,25 @@ body {
 .disconnect-msg h2 {
   margin-bottom: 20px;
 }
+
+/* Reconnect */
+.reconnect-msg {
+  text-align: center;
+  background: #16213e;
+  padding: 40px;
+  border-radius: 12px;
+  border: 2px solid #f5af19;
+}
+
+.reconnect-msg h2 {
+  margin-bottom: 8px;
+}
+
+.reconnect-msg .spinner {
+  margin: 0 auto 16px;
+}
+
+.reconnect-hint {
+  color: #888;
+  font-size: 13px;
+}

@@ -48,6 +48,8 @@ const dom = {
   rematchStatus: document.getElementById('rematch-status'),
   disconnectOverlay: document.getElementById('disconnect-overlay'),
   btnDisconnectLobby: document.getElementById('btn-disconnect-lobby'),
+  reconnectOverlay: document.getElementById('reconnect-overlay'),
+  reconnectAttempt: document.getElementById('reconnect-attempt'),
 };
 
 // State
@@ -68,6 +70,7 @@ function showScreen(name) {
   dom.countdownOverlay.classList.add('hidden');
   dom.goalOverlay.classList.add('hidden');
   dom.disconnectOverlay.classList.add('hidden');
+  dom.reconnectOverlay.classList.add('hidden');
   // Resize canvas when game screen becomes active
   if (name === 'game') setTimeout(resizeCanvasForMobile, 100);
 }
@@ -151,11 +154,13 @@ async function ensureConnected() {
 
   network.on('opponent_left', () => {
     if (clientGame) clientGame.stop();
+    dom.disconnectOverlay.querySelector('h2').textContent = '상대가 나갔습니다';
     dom.disconnectOverlay.classList.remove('hidden');
   });
 
   network.on('disconnected', () => {
     if (clientGame) clientGame.stop();
+    dom.reconnectOverlay.classList.add('hidden');
     showScreen('lobby');
     showError('서버와의 연결이 끊어졌습니다.');
   });
@@ -163,6 +168,7 @@ async function ensureConnected() {
   network.on('room_created', (msg) => {
     currentRoomId = msg.roomId;
     dom.roomCode.textContent = msg.roomId;
+    if (msg.token) network.setToken(msg.token);
     showScreen('waiting');
   });
 
@@ -170,6 +176,7 @@ async function ensureConnected() {
     currentRoomId = msg.roomId;
     myIndex = msg.playerIndex;
     playerNames = msg.players;
+    if (msg.token) network.setToken(msg.token);
     // Will receive countdown soon
     showScreen('game');
   });
@@ -209,6 +216,52 @@ async function ensureConnected() {
   network.on('rematch_request', () => {
     dom.rematchStatus.textContent = '상대가 다시 하기를 원합니다!';
     dom.rematchStatus.classList.remove('hidden');
+  });
+
+  // Reconnection events
+  network.on('reconnecting', (msg) => {
+    dom.reconnectOverlay.classList.remove('hidden');
+    dom.reconnectAttempt.textContent = msg.attempt;
+  });
+
+  network.on('reconnect_success', (msg) => {
+    dom.reconnectOverlay.classList.add('hidden');
+    currentRoomId = msg.roomId;
+    myIndex = msg.playerIndex;
+    console.log(`Reconnected to room ${msg.roomId} as player ${msg.playerIndex}`);
+  });
+
+  network.on('reconnect_failed', () => {
+    dom.reconnectOverlay.classList.add('hidden');
+    network.clearToken();
+    if (clientGame) clientGame.stop();
+    showScreen('lobby');
+    showError('재접속에 실패했습니다.');
+  });
+
+  network.on('game_reconnect', (msg) => {
+    dom.reconnectOverlay.classList.add('hidden');
+    myIndex = msg.playerIndex;
+    playerNames = msg.players;
+
+    dom.hudNameP1.textContent = playerNames[0] || 'P1';
+    dom.hudNameP2.textContent = playerNames[1] || 'P2';
+    dom.hudScoreP1.textContent = msg.score[0];
+    dom.hudScoreP2.textContent = msg.score[1];
+    dom.hudTimer.textContent = Math.ceil(msg.timeLeft);
+
+    showScreen('game');
+    startGame(msg.state);
+  });
+
+  network.on('opponent_disconnected', () => {
+    // Show subtle hint, don't kick to lobby - opponent may reconnect
+    dom.disconnectOverlay.querySelector('h2').textContent = '상대 재접속 대기 중...';
+    dom.disconnectOverlay.classList.remove('hidden');
+  });
+
+  network.on('opponent_reconnected', () => {
+    dom.disconnectOverlay.classList.add('hidden');
   });
 }
 
@@ -295,8 +348,11 @@ function leaveRoom() {
     clientGame.stop();
     clientGame = null;
   }
-  if (network && network.connected) {
-    network.send({ type: 'leave' });
+  if (network) {
+    network.clearToken();
+    if (network.connected) {
+      network.send({ type: 'leave' });
+    }
   }
   currentRoomId = null;
   showScreen('lobby');

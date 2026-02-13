@@ -33,6 +33,9 @@ wss.on('connection', (ws) => {
       case 'join_room':
         handleJoinRoom(ws, msg);
         break;
+      case 'reconnect':
+        handleReconnect(ws, msg);
+        break;
       case 'input':
         handleInput(ws, msg);
         break;
@@ -61,6 +64,7 @@ function handleCreateRoom(ws, msg) {
     type: 'room_created',
     roomId: room.id,
     nickname,
+    token: room.getPlayerToken(0),
   }));
 
   console.log(`Room ${room.id} created by ${nickname}`);
@@ -94,6 +98,7 @@ function handleJoinRoom(ws, msg) {
     roomId: room.id,
     playerIndex: 1,
     players: room.players.map(p => p ? p.nickname : null),
+    token: room.getPlayerToken(1),
   }));
 
   // Notify host
@@ -165,9 +170,41 @@ function handleLeave(ws) {
   }
 }
 
+function handleReconnect(ws, msg) {
+  const token = msg.token;
+  if (!token) {
+    ws.send(JSON.stringify({ type: 'reconnect_failed' }));
+    return;
+  }
+
+  const result = RoomManager.findRoomByToken(token);
+  if (!result) {
+    ws.send(JSON.stringify({ type: 'reconnect_failed' }));
+    return;
+  }
+
+  const { room, playerIndex } = result;
+  if (room.playerReconnected(playerIndex, ws)) {
+    ws.send(JSON.stringify({ type: 'reconnect_success', playerIndex, roomId: room.id }));
+    console.log(`Player ${playerIndex} reconnected to room ${room.id}`);
+  } else {
+    ws.send(JSON.stringify({ type: 'reconnect_failed' }));
+  }
+}
+
 function handleDisconnect(ws) {
-  handleLeave(ws);
-  console.log('Player disconnected');
+  const room = RoomManager.findRoomByPlayer(ws);
+  if (!room) {
+    console.log('Player disconnected (no room)');
+    return;
+  }
+
+  const idx = room.getPlayerIndex(ws);
+  if (idx === -1) return;
+
+  // Don't remove player - start reconnect timer
+  room.playerDisconnected(idx);
+  console.log(`Player ${idx} disconnected from room ${room.id} (waiting for reconnect)`);
 }
 
 // Start server

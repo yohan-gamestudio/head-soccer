@@ -1,18 +1,21 @@
 import * as Physics from '../game/Physics.js';
 import * as C from '../game/Constants.js';
-
-let roomIdCounter = 0;
+import crypto from 'crypto';
 
 function generateRoomId() {
-  // 4-digit numeric code
   return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+function generateToken() {
+  return crypto.randomBytes(16).toString('hex');
 }
 
 export class Room {
   constructor(hostWs, hostNickname) {
     this.id = generateRoomId();
+    const token = generateToken();
     this.players = [
-      { ws: hostWs, nickname: hostNickname, inputQueue: [], lastSeq: 0 },
+      { ws: hostWs, nickname: hostNickname, inputQueue: [], lastSeq: 0, token, connected: true },
       null,
     ];
     this.state = null;
@@ -22,6 +25,8 @@ export class Room {
     this.tickInterval = null;
     this.snapshotCounter = 0;
     this.countdownTimer = null;
+    this.disconnectTimers = [null, null];
+    this.RECONNECT_TIMEOUT = 30000; // 30 seconds
   }
 
   get isFull() {
@@ -30,8 +35,13 @@ export class Room {
 
   addPlayer(ws, nickname) {
     if (this.players[1] !== null) return false;
-    this.players[1] = { ws, nickname, inputQueue: [], lastSeq: 0 };
+    const token = generateToken();
+    this.players[1] = { ws, nickname, inputQueue: [], lastSeq: 0, token, connected: true };
     return true;
+  }
+
+  getPlayerToken(idx) {
+    return this.players[idx] ? this.players[idx].token : null;
   }
 
   removePlayer(ws) {
@@ -211,6 +221,78 @@ export class Room {
     });
   }
 
+  // Player disconnected - keep slot, start timeout
+  playerDisconnected(idx) {
+    const p = this.players[idx];
+    if (!p) return;
+    p.connected = false;
+    p.ws = null;
+
+    // Notify opponent
+    const opIdx = 1 - idx;
+    this.sendTo(opIdx, { type: 'opponent_disconnected' });
+
+    // Start reconnect timeout
+    this.disconnectTimers[idx] = setTimeout(() => {
+      // Time's up - remove player for real
+      this.players[idx] = null;
+      this.sendTo(opIdx, { type: 'opponent_left' });
+
+      // If room empty or game was running, clean up
+      if (!this.players[0] && !this.players[1]) {
+        removeRoom(this.id);
+      } else {
+        this.destroy();
+        this.gameOver = false;
+        this.gameRunning = false;
+      }
+    }, this.RECONNECT_TIMEOUT);
+  }
+
+  // Player reconnected - restore ws
+  playerReconnected(idx, ws) {
+    const p = this.players[idx];
+    if (!p) return false;
+
+    // Clear disconnect timer
+    if (this.disconnectTimers[idx]) {
+      clearTimeout(this.disconnectTimers[idx]);
+      this.disconnectTimers[idx] = null;
+    }
+
+    p.ws = ws;
+    p.connected = true;
+
+    // Notify opponent
+    const opIdx = 1 - idx;
+    this.sendTo(opIdx, { type: 'opponent_reconnected' });
+
+    // Send current game state to reconnected player
+    if (this.gameRunning && this.state) {
+      ws.send(JSON.stringify({
+        type: 'game_reconnect',
+        state: Physics.serializeState(this.state),
+        playerIndex: idx,
+        players: this.players.map(pl => pl ? pl.nickname : null),
+        score: this.state.score,
+        timeLeft: this.state.timeLeft,
+      }));
+    } else if (this.gameOver && this.state) {
+      // Game already ended while disconnected
+      const score = this.state.score;
+      let winner = -1;
+      if (score[0] > score[1]) winner = 0;
+      else if (score[1] > score[0]) winner = 1;
+      ws.send(JSON.stringify({
+        type: 'game_over',
+        score: [...score],
+        winner,
+      }));
+    }
+
+    return true;
+  }
+
   destroy() {
     this.gameRunning = false;
     if (this.tickInterval) {
@@ -248,6 +330,17 @@ export function removeRoom(id) {
 export function findRoomByPlayer(ws) {
   for (const room of rooms.values()) {
     if (room.getPlayerIndex(ws) !== -1) return room;
+  }
+  return null;
+}
+
+export function findRoomByToken(token) {
+  for (const room of rooms.values()) {
+    for (let i = 0; i < 2; i++) {
+      if (room.players[i] && room.players[i].token === token) {
+        return { room, playerIndex: i };
+      }
+    }
   }
   return null;
 }
