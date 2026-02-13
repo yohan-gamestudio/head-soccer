@@ -1,0 +1,7 @@
+node_modules
+.git
+.claude
+.playwright-cli
+*.png
+*.jpg
+CLAUDE.md

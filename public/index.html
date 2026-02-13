@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>Head Soccer</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Nickname Screen -->
+  <div id="screen-nickname" class="screen active">
+    <div class="lobby-container">
+      <h1 class="title">HEAD SOCCER</h1>
+      <div class="subtitle">Online Multiplayer</div>
+
+      <div class="input-group">
+        <label for="nickname">닉네임</label>
+        <input type="text" id="nickname" maxlength="12" placeholder="닉네임 입력" value="">
+      </div>
+
+      <button id="btn-next" class="btn btn-primary" style="width:100%">다음</button>
+    </div>
+  </div>
+
+  <!-- Lobby Screen -->
+  <div id="screen-lobby" class="screen">
+    <div class="lobby-container">
+      <h1 class="title">HEAD SOCCER</h1>
+      <div class="subtitle" id="lobby-nickname"></div>
+
+      <div class="btn-group">
+        <button id="btn-create" class="btn btn-primary">방 만들기</button>
+        <button id="btn-join-toggle" class="btn btn-secondary">방 참가</button>
+      </div>
+
+      <button id="btn-lobby-back" class="btn btn-secondary" style="width:100%;margin-top:16px">뒤로</button>
+      <div id="lobby-error" class="error-msg hidden"></div>
+    </div>
+  </div>
+
+  <!-- Join Screen -->
+  <div id="screen-join" class="screen">
+    <div class="lobby-container">
+      <h2 style="margin-bottom:24px;color:#f5af19">방 참가</h2>
+
+      <div class="input-group">
+        <label for="room-code-input">방 코드</label>
+        <input type="tel" id="room-code-input" maxlength="4" placeholder="4자리 코드 입력" inputmode="numeric" pattern="[0-9]*">
+      </div>
+
+      <div class="btn-group">
+        <button id="btn-join" class="btn btn-primary">참가하기</button>
+        <button id="btn-join-back" class="btn btn-secondary">뒤로</button>
+      </div>
+
+      <div id="join-error" class="error-msg hidden"></div>
+    </div>
+  </div>
+
+  <!-- Waiting Screen -->
+  <div id="screen-waiting" class="screen">
+    <div class="waiting-container">
+      <h2>대기 중...</h2>
+      <div class="room-code-display">
+        방 코드: <span id="room-code" class="code"></span>
+      </div>
+      <div class="waiting-hint">친구에게 코드를 공유하세요</div>
+      <div class="spinner"></div>
+      <button id="btn-cancel" class="btn btn-secondary">취소</button>
+    </div>
+  </div>
+
+  <!-- Game Screen -->
+  <div id="screen-game" class="screen">
+    <div class="game-hud">
+      <div class="hud-player hud-p1">
+        <span id="hud-name-p1" class="hud-name">P1</span>
+        <span id="hud-score-p1" class="hud-score">0</span>
+      </div>
+      <div class="hud-center">
+        <span id="hud-timer" class="hud-timer">60</span>
+      </div>
+      <div class="hud-player hud-p2">
+        <span id="hud-score-p2" class="hud-score">0</span>
+        <span id="hud-name-p2" class="hud-name">P2</span>
+      </div>
+    </div>
+    <div class="game-canvas-wrap">
+      <canvas id="game-canvas" width="800" height="450"></canvas>
+
+      <!-- Mobile touch controls (overlay on canvas) -->
+      <div id="touch-controls" class="touch-controls">
+        <div class="touch-left">
+          <button class="touch-btn" data-key="left">◀</button>
+          <button class="touch-btn" data-key="right">▶</button>
+        </div>
+        <div class="touch-right">
+          <button class="touch-btn" data-key="up">⬆</button>
+          <button class="touch-btn touch-btn-kick" data-key="kick">⚽</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Countdown overlay -->
+    <div id="countdown-overlay" class="overlay hidden">
+      <div id="countdown-number" class="countdown-number">3</div>
+    </div>
+
+    <!-- Goal overlay -->
+    <div id="goal-overlay" class="overlay hidden">
+      <div class="goal-text">GOAL!</div>
+    </div>
+  </div>
+
+  <!-- Result Screen -->
+  <div id="screen-result" class="screen">
+    <div class="result-container">
+      <h1 id="result-title" class="result-title">GAME OVER</h1>
+      <div class="result-scores">
+        <div class="result-player">
+          <div id="result-name-p1" class="result-name">P1</div>
+          <div id="result-score-p1" class="result-score-big">0</div>
+        </div>
+        <div class="result-vs">:</div>
+        <div class="result-player">
+          <div id="result-name-p2" class="result-name">P2</div>
+          <div id="result-score-p2" class="result-score-big">0</div>
+        </div>
+      </div>
+      <div id="result-winner" class="result-winner"></div>
+      <div class="btn-group">
+        <button id="btn-rematch" class="btn btn-primary">다시 하기</button>
+        <button id="btn-lobby" class="btn btn-secondary">로비로</button>
+      </div>
+      <div id="rematch-status" class="rematch-status hidden"></div>
+    </div>
+  </div>
+
+  <!-- Disconnected overlay (can appear on any screen) -->
+  <div id="disconnect-overlay" class="overlay hidden">
+    <div class="disconnect-msg">
+      <h2>상대가 나갔습니다</h2>
+      <button id="btn-disconnect-lobby" class="btn btn-primary">로비로</button>
+    </div>
+  </div>
+
+  <!-- PWA install screen (blocks game on mobile browser) -->
+  <div id="pwa-gate" class="pwa-gate hidden">
+    <div class="pwa-gate-content">
+      <h1 class="title">HEAD SOCCER</h1>
+      <div class="pwa-gate-icon">⚽</div>
+      <p class="pwa-gate-msg">전체화면으로 플레이하세요!</p>
+      <button id="btn-fullscreen-enter" class="btn btn-primary pwa-gate-btn">전체화면으로 시작</button>
+      <div id="pwa-gate-ios" class="pwa-gate-ios hidden">
+        공유(<strong>⎙</strong>) → <strong>홈 화면에 추가</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rotate hint for portrait mobile in PWA -->
+  <div id="rotate-hint" class="rotate-hint">
+    <div class="rotate-hint-icon">📱</div>
+    <div>가로로 돌려주세요</div>
+  </div>
+
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>
