@@ -5,3 +5,4 @@ node_modules/
 *.png
 *.jpg
 reference.*
+public/index.html

@@ -9,8 +9,15 @@ export class Network {
 
   connect() {
     return new Promise((resolve, reject) => {
-      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      this.ws = new WebSocket(`${protocol}//${location.host}`);
+      const cfg = window.__BASE_CONFIG__;
+      let url;
+      if (cfg && cfg.wsUrl) {
+        url = cfg.wsUrl;
+      } else {
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        url = `${protocol}//${location.host}`;
+      }
+      this.ws = new WebSocket(url);
 
       this.ws.onopen = () => {
         this.connected = true;

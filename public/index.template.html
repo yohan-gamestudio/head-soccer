@@ -6,10 +6,20 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="manifest" href="/manifest.json">
+  <link rel="manifest" href="%%BASE_URL%%/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
   <title>Head Soccer</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="%%BASE_URL%%/css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "/game/": "%%BASE_URL%%/game/"
+    }
+  }
+  </script>
+  <script>
+    window.__BASE_CONFIG__ = { wsUrl: '%%WS_URL%%', baseUrl: '%%BASE_URL%%' };
+  </script>
 </head>
 <body>
   <!-- Nickname Screen -->
@@ -168,6 +178,6 @@
     <div>가로로 돌려주세요</div>
   </div>
 
-  <script type="module" src="/js/main.js"></script>
+  <script type="module" src="%%BASE_URL%%/js/main.js"></script>
 </body>
 </html>

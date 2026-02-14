@@ -5,8 +5,8 @@
   "description": "Real-time multiplayer Head Soccer game",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "node scripts/gen-config.js && node server.js",
+    "dev": "node scripts/gen-config.js && node --watch server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
